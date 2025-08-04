@@ -1,53 +1,53 @@
-# Federated SubNet (FedSN) - Implémentation Simple
+# Federated SubNet (FedSN) - Simple Implementation
 
 ## Description
 
-Ce projet propose une implémentation simple de **Federated SubNet (FedSN)**, une méthode de *federated learning* où chaque client entraîne une sous-partie (substructure) du modèle global. L’objectif est de réduire la charge computationnelle côté client tout en conservant une bonne performance globale.
+This project provides a simple implementation of **Federated SubNet (FedSN)**, a federated learning method where each client trains a **sub-part (substructure)** of the global model. The goal is to reduce the computational load on the client side while maintaining good overall performance.
 
 ---
 
-## Workflow - Masking et Freezing
+## Workflow – Masking and Freezing
 
-La clé de cette approche repose sur un mécanisme de **masking** et **freezing** des couches du réseau neuronal :
+The core idea of this approach relies on **masking** and **freezing** layers of the neural network:
 
-1. **Réception du modèle global complet** :  
-   Chaque client reçoit le modèle global complet (tous les paramètres).
+1. **Receive the full global model:**  
+   Each client receives the complete global model (all parameters).
 
-2. **Définition d’un masque sur les couches** :  
-   Pour chaque client, une liste `sub_indices` indique les couches ou sous-structures qu’il doit entraîner. Par exemple, un client peut n’entraîner que les couches 2 à 4.
+2. **Define a mask on layers:**  
+   For each client, a list of `sub_indices` indicates which layers or substructures they should train. For example, a client may only train layers 2 to 4.
 
-3. **Masquage des couches non concernées (Freezing)** :  
-   Toutes les couches **hors du sous-ensemble ciblé** sont mises en mode *gelé* (`requires_grad=False`), ce qui empêche la mise à jour de leurs poids pendant l’entraînement local.
+3. **Freeze the layers outside the subset:**  
+   All layers **outside the targeted subset** are frozen (`requires_grad=False`), preventing their weights from being updated during local training.
 
-4. **Entraînement local** :  
-   Le client effectue le fine-tuning uniquement sur les couches actives (non gelées).
+4. **Local training:**  
+   The client fine-tunes only the active (unfrozen) layers.
 
-5. **Retour des paramètres mis à jour** :  
-   Après l’entraînement, le client renvoie au serveur uniquement les sous-parties mises à jour du modèle.
+5. **Return updated parameters:**  
+   After training, the client sends back only the updated substructure parameters.
 
-6. **Agrégation côté serveur** :  
-   Le serveur reconstitue le modèle global en agrégeant les sous-structures mises à jour provenant de tous les clients.
-
----
-
-## Avantages de cette méthode
-
-- **Allègement du calcul client** : chaque client n’entraîne qu’une partie du modèle, ce qui réduit la consommation de ressources locales (CPU/GPU, mémoire).  
-- **Flexibilité** : la stratégie `sub_indices` peut être adaptée selon la capacité ou budget computationnel de chaque client.  
-- **Simplicité d’intégration** : on conserve un modèle global de taille fixe, évitant les complexités liées à la gestion de modèles partiels indépendants.
+6. **Server-side aggregation:**  
+   The server reconstructs the global model by aggregating updated substructures from all clients.
 
 ---
 
-## Structure du code
+## Advantages of this Method
 
-- **client.py** : contient la logique pour recevoir le modèle, appliquer le masking/freezing, entraîner la sous-structure, et renvoyer les mises à jour.  
-- **serveur.py** : orchestre la fédération, distribue les sous-structures selon des critères (budget client, clustering), et agrège les mises à jour reçues.  
-- **utils.py** : fonctions utilitaires pour manipulation des paramètres, masquage, et reconstruction du modèle.
+- **Reduced client computation:** each client trains only part of the model, lowering local resource consumption (CPU/GPU, memory).  
+- **Flexibility:** the `sub_indices` strategy can be adapted based on each client’s computational budget.  
+- **Simplicity of integration:** maintains a fixed-size global model, avoiding complexities of managing independent partial models.
 
 ---
 
-## Instructions d’utilisation
+## Code Structure
 
-1. Lancer le serveur fédéré :  
+- **client.py:** handles receiving the model, applying masking/freezing, training the substructure, and returning updates.  
+- **server.py:** orchestrates federation, distributes substructures based on client budgets or clustering, and aggregates received updates.  
+- **utils.py:** utility functions for parameter manipulation, masking, and model reconstruction.
+
+---
+
+## Usage Instructions
+
+1. Start the federated server:  
    ```bash
-   python serveur.py
+   python server.py
