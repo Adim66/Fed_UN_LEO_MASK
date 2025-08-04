@@ -42,7 +42,8 @@ The core idea of this approach relies on **masking** and **freezing** layers of 
 
 - **client.py:** handles receiving the model, applying masking/freezing, training the substructure, and returning updates.  
 - **server.py:** orchestrates federation, distributes substructures based on client budgets or clustering, and aggregates received updates.  
-- **utils.py:** utility functions for parameter manipulation, masking, and model reconstruction.
+- **luncher_client.py:** utility functions for parameter manipulation, masking, and model reconstruction.
+- **model.py:** for pytorch manipulation  
 
 ---
 
@@ -51,3 +52,6 @@ The core idea of this approach relies on **masking** and **freezing** layers of 
 1. Start the federated server:  
    ```bash
    python server.py
+2. Start the federated client luncher :  
+   ```bash
+   python luncher_client.py
