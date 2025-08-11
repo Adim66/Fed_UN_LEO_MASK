@@ -1,0 +1,81 @@
+
+=== Round 2 ===
+Cluster 0:
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.10, Sub-Indices: 0,1,2,3,4,5,6,7
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.15, Sub-Indices: 8,9
+Cluster 1:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.58, Sub-Indices: 0,1,2,3
+Cluster 2:
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.69, Sub-Indices: 0,1,2
+
+=== Round 3 ===
+Cluster 0:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.22, Sub-Indices: 0,1,2,3,4,5,6
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.08, Sub-Indices: 7,8,9
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.30, Sub-Indices: N/A
+Cluster 1:
+Cluster 2:
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.83, Sub-Indices: 0
+
+=== Round 4 ===
+Cluster 0:
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.11, Sub-Indices: 0,1,2,3,4,5,6,7
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.23, Sub-Indices: 8,9
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.31, Sub-Indices: N/A
+Cluster 1:
+Cluster 2:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.95, Sub-Indices: 0
+
+=== Round 5 ===
+Cluster 0:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.12, Sub-Indices: 0
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.01, Sub-Indices: 0,1,2,3
+Cluster 1:
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.39, Sub-Indices: 0,1,2,3
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.60, Sub-Indices: 0,1,2,3
+Cluster 2:
+
+=== Round 6 ===
+Cluster 0:
+Cluster 1:
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.59, Sub-Indices: 0,1,2,3
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.62, Sub-Indices: 0,1,2,3
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.64, Sub-Indices: 0,1,2,3
+Cluster 2:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.84, Sub-Indices: N/A
+
+=== Round 7 ===
+Cluster 0:
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.18, Sub-Indices: 0,1,2,3
+Cluster 1:
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.41, Sub-Indices: 0,1,2,3
+Cluster 2:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.86, Sub-Indices: N/A
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.73, Sub-Indices: 0,1,2,3
+
+=== Round 8 ===
+Cluster 0:
+Cluster 1:
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.34, Sub-Indices: 0,1,2,3
+Cluster 2:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.69, Sub-Indices: N/A
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.76, Sub-Indices: 0,1,2,3
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.75, Sub-Indices: 0,1,2,3
+
+=== Round 9 ===
+Cluster 0:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.17, Sub-Indices: N/A
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.09, Sub-Indices: 0,1,2,3
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.18, Sub-Indices: 0,1,2,3
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.21, Sub-Indices: N/A
+Cluster 1:
+Cluster 2:
+
+=== Round 10 ===
+Cluster 0:
+  Client 1c4ae2661e4248f6a0aa2ff44c4cfe1a, Budget: 0.05, Sub-Indices: 0
+  Client 821da32728864aa7ba66cfd6f3216c13, Budget: 0.19, Sub-Indices: 0,1,2,3
+  Client 813f23ad81e943288c5c2aa66ebfa4bc, Budget: 0.25, Sub-Indices: N/A
+Cluster 1:
+  Client 5fa75eb631cb4cd7b322a33d66e4a618, Budget: 0.35, Sub-Indices: 0,1,2,3
+Cluster 2:

@@ -1,0 +1,6 @@
+Round 5 - Loss: 2.3020, Accuracy: 0.1137
+Round 6 - Loss: 2.3022, Accuracy: 0.1137
+Round 7 - Loss: 2.3021, Accuracy: 0.1137
+Round 8 - Loss: 2.3021, Accuracy: 0.1137
+Round 9 - Loss: 2.3022, Accuracy: 0.1137
+Round 10 - Loss: 2.3025, Accuracy: 0.0997

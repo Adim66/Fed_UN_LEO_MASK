@@ -25,10 +25,11 @@ def load_full_mnist():
 
     train_dataset = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
     test_dataset = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
-
+    print(f"Train dataset size: {len(train_dataset)}"
+          f", Test dataset size: {len(test_dataset)}")
     return train_dataset, test_dataset
 
-def load_data(train_dataset, client_id, num_clients, batch_size=16):
+def load_data(train_dataset, client_id, num_clients, batch_size=1):
     # Calculer indices pour découper le dataset en partitions égales
     data_len = len(train_dataset)
     indices_per_client = data_len // num_clients
@@ -39,7 +40,7 @@ def load_data(train_dataset, client_id, num_clients, batch_size=16):
 
     client_subset = Subset(train_dataset, client_indices)
     client_loader = DataLoader(client_subset, batch_size=batch_size, shuffle=True)
-
+    print(f"Client id {client_id} a {len(client_subset)} exemples.")
     return client_loader
 
 
@@ -55,17 +56,23 @@ def get_weights(model: nn.Module) -> List[np.ndarray]:
 # ========== Entraînement local ==========
 def train(model, dataloader, epochs=1):
     model.train()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.08)
     loss_fn = nn.CrossEntropyLoss()
-
+    i=0
     for _ in range(epochs):
+        j=0
         for x, y in dataloader:
             x = x.view(x.size(0), -1)
             optimizer.zero_grad()
             output = model(x)
+            j+=1
+            
             loss = loss_fn(output, y)
             loss.backward()
+
             optimizer.step()
+        print(f"-----------------Training batch-------------------- {j}")
+        
 def evaluation(model, dataloader):
     model.eval()  # mode évaluation (désactive dropout, batchnorm etc.)
     loss_fn = nn.CrossEntropyLoss()
@@ -119,6 +126,12 @@ class BudgetClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
     # 1. Récupérer la sous-structure envoyée par le serveur (ex: "0,1,2") et la convertir en liste d'entiers
      sub_indices = list(map(int, config.get("sub_indices", "").split(",")))
+     if sub_indices == []:
+           return parameters, len(self.local_data), {
+        "cluster_id": config.get("cluster_id", "unknown"),
+        "sub_indices": config.get("sub_indices", ""),
+        "id": self.client_id
+    }
      print(f"params de types :{type(parameters)}")
    
     # 2. Construire un modèle complet avec l'architecture globale (toutes les couches)
@@ -129,7 +142,7 @@ class BudgetClient(fl.client.NumPyClient):
 
     # 4. Geler (freeze) un certain pourcentage de couches cachées selon la sous-structure reçue
      self.freeze_layers_by_percentage(model, sub_indices)
-
+     print(f"données de ce client est : {len(self.local_data.dataset)} exemples")
      train(model, self.local_data, epochs=config.get("epochs", 1))
 
   
@@ -138,13 +151,16 @@ class BudgetClient(fl.client.NumPyClient):
      updated_parameters = get_weights(model)
      print("------------------------------------------------------------------------")
      print(f"updated est de type: {type(updated_parameters)}")
+     print(f"type of elements : {type(updated_parameters[0])}")
+     print(f"[DEBUG] Après entraînement - nombre de tensors: {len(updated_parameters)}")
     # 8. Retourner :
     #    - les nouveaux poids,
     #    - le nombre d'exemples utilisés,
     #    - les métadonnées utiles (cluster_id, sous-structure utilisée)
      return updated_parameters, len(self.local_data), {
         "cluster_id": config.get("cluster_id", "unknown"),
-        "sub_indices": config.get("sub_indices", "")
+        "sub_indices": config.get("sub_indices", ""),
+        "id": self.client_id
     }
     def evaluate(self, parameters, config):
     # 1. Construire le modèle complet

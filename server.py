@@ -5,6 +5,10 @@ import numpy as np
 import torch.nn as nn
 from typing import List, Optional, Tuple, Dict
 from collections import defaultdict
+import os
+
+from unlearning.forget_vector import compute_forget_vector
+from unlearning.influence import influences
 
 
 # Fonction simple pour clusteriser sans sklearn en 3 groupes
@@ -17,6 +21,16 @@ def cluster_clients_by_budget(budgets: List[float], all_clients: List[fl.server.
             clusters[1].append(client)
         else:
             clusters[2].append(client)
+    return clusters
+def clusters_to_save(budgets: List[float], all_clients: List[fl.server.client_proxy.ClientProxy]) -> Dict[int, List[fl.server.client_proxy.ClientProxy]]:
+    clusters = {0: [], 1: [], 2: []}
+    for client, b in zip(all_clients, budgets):
+        if b < 0.33:
+            clusters[0].append((client,b))
+        elif b < 0.66:
+            clusters[1].append((client,b))
+        else:
+            clusters[2].append((client,b))
     return clusters
 
 # Exemple de paramètres initiaux (liste de numpy arrays)
@@ -40,7 +54,11 @@ def split_model_into_substructures(ndarrays: List[np.ndarray], num_parts: int):
 
 
 
-NUM_SUBSTRUCTURES = 10  # Nombre de sous-structures à créer
+NUM_SUBSTRUCTURES = 10 
+UNLEARN_ROUND=5
+unlearn_threshold = 0.7  # Seuil pour considérer une influence comme faible
+CLIENT_TO_UNLEARN= ""  # Client à désapprendre""
+SUB_WEEK=[] # Nombre de sous-structures à créer
 class SimpleModel(nn.Sequential):
     def __init__(self):
         super().__init__(
@@ -62,12 +80,14 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
         if not all_clients:
             print("[Warning] Aucun client disponible pour ce round.")
             return []
-
+        global CLIENT_TO_UNLEARN, SUB_WEEK, unlearn_threshold
         # Générer budgets aléatoires [0,1]
         budgets = [random.random() for _ in all_clients]
         print(f"[Round {server_round}] Budgets générés : {budgets}")
         # Clustering
         clusters = cluster_clients_by_budget(budgets, all_clients)
+        #hadhouma clusters besh n7otouhom fi el file for unlearning 
+        log_clusters = clusters_to_save(budgets, all_clients)
         #print(f"Taille des paramètres : {len(parameters)}")
         print(f"\n[Round {server_round}] Budgets clients :")
         for i, (client, budget) in enumerate(zip(all_clients, budgets)):
@@ -96,10 +116,22 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
         print(f"[DEBUG] Round weights: {[w.shape for w in weights]}")
 
 
-
+        print(f"client id {all_clients[0].cid}")
+        print("budgets", len(budgets))
         substructures = split_model_into_substructures(weights, NUM_SUBSTRUCTURES)
         print(f"[DEBUG] Nombre total de sous-structures générées : {len(substructures)}")
         print(f"[DEBUG] Exemple de forme des tenseurs dans le bloc 0 : {[t.shape for t in substructures[0]]}")
+        if (server_round == UNLEARN_ROUND):
+                    print("Unlearning round reached, computing forget vector...")
+                    influential_indices, _ = compute_forget_vector(all_clients[0].cid,"logs/cluster_log.txt", NUM_SUBSTRUCTURES)
+                    print(f"Influential indices for client {all_clients[0].cid}: {influential_indices}")
+                    fki = influences(all_clients[0].cid, "logs/cluster_log.txt", influential_indices)
+                    print(f"Influence vector for client {all_clients[0].cid}: {fki}")
+                    weakly_influenced = [i for i in influential_indices if fki[i] < unlearn_threshold]
+                    SUB_WEEK=weakly_influenced
+                    CLIENT_TO_UNLEARN = all_clients[0].cid
+                    print(f"Client {CLIENT_TO_UNLEARN} will unlearn substructures: {SUB_WEEK}")
+                    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         for cluster_id, cluster_clients in clusters.items():
              if not cluster_clients:
@@ -117,28 +149,74 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
         # Répartition des blocs entre clients (sans chevauchement)
              current_idx = 0
              for client, share in client_shares:
+    
+                     
+                 if client.cid == CLIENT_TO_UNLEARN and UNLEARN_ROUND <server_round <=9:
+                     
+                     continue 
+                 
                  if current_idx >= NUM_SUBSTRUCTURES:
                    break  # plus rien à attribuer
 
                  end_idx = min(current_idx + share, NUM_SUBSTRUCTURES)
-                 assigned_blocks = substructures[current_idx:end_idx]
-                 if isinstance(assigned_blocks[0], list):
-                   tensors = [tensor for block in assigned_blocks for tensor in block]
-                 else:
-                  tensors = assigned_blocks
-            # Fusionner les blocs attribués à ce client
-                 client_parameters = fl.common.ndarrays_to_parameters(tensors)
-                # print(f"Client {client.cid} - Cluster {cluster_id} : {len(assigned_blocks)} blocs attribués")
                  config = {
-    "cluster_id": cluster_id,
+   "cluster_id": cluster_id,
     "sub_indices": ",".join(map(str, list(range(current_idx, end_idx))))
-}
+
+}               
+                 print("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ")
+                 print(config) #lenna ba3ed el round 5 besh n7otou les sub indices weakly influenced llkol el clients
+                 if server_round >=UNLEARN_ROUND :
+                      config = {
+    "cluster_id": cluster_id,
+    "sub_indices": ",".join(str(n) for n in SUB_WEEK)
+
+}                     
+                      print("sub indices weakly influenced", SUB_WEEK)
+
+                 if client.cid == CLIENT_TO_UNLEARN :
+                                 print("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR :")
+                                 print("round", server_round)
+                                 config = {
+    "cluster_id": cluster_id,
+    "sub_indices": ",".join(["0"])
+
+}         
+                 fit_instructions.append((client, fl.common.FitIns(parameters, config)))
+                 for nodes in log_clusters.values():
+                     for i in range(len(nodes)):
+                            node_client, budget = nodes[i][0], nodes[i][1]
+                            if node_client.cid == client.cid:
+                # Remplacer le tuple (client, budget) par un triplet (client, budget, sub_indices)
+                             nodes[i] = (node_client, budget, config["sub_indices"])
+                             break  # une fois trouvé, inutile de continuer
+                             
+                 print("cluster log",log_clusters)     
+                             
+                             
+                     
+            # Fusionner les blocs attribués à ce client
+                 
+                # print(f"Client {client.cid} - Cluster {cluster_id} : {len(assigned_blocks)} blocs attribués")
 
                 # print(config)
-                 fit_instructions.append((client, fl.common.FitIns(parameters, config)))
-                 print(len(fit_instructions))
+                 
                  current_idx = end_idx
         #print(f"[DEBUG] Nombre total de clients sélectionnés pour fit: {len(fit_instructions)}")
+       
+# Chemin du fichier de log (crée un dossier 'logs' si besoin)
+        os.makedirs("logs", exist_ok=True)
+        log_file_path = "logs/cluster_log.txt"
+
+        with open(log_file_path, "a") as f:
+          f.write(f"\n=== Round {server_round} ===\n")
+          for cluster_id, nodes in log_clusters.items():
+             f.write(f"Cluster {cluster_id}:\n")
+             for entry in nodes:
+                client_obj, budget = entry[0], entry[1]
+                sub_indices = entry[2] if len(entry) > 2 else "N/A"
+                f.write(f"  Client {client_obj.cid}, Budget: {budget:.2f}, Sub-Indices: {sub_indices}\n")
+
         return fit_instructions
    # The following block is commented out because it is unused and causes indentation errors.
    # def configure_fit(
@@ -188,7 +266,7 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
             sub_indices = fit_res.metrics.get("sub_indices")
             cluster_id = fit_res.metrics.get("cluster_id")
             weights = fl.common.parameters_to_ndarrays(fit_res.parameters)
-
+            
             if cluster_id not in clusters_results:
              clusters_results[cluster_id] = []
             clusters_results[cluster_id].append((weights, fit_res.num_examples, sub_indices))
@@ -232,11 +310,16 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
       weighted_loss_sum = 0.0
       weighted_accuracy_sum = 0.0
       print(f"actvated evaluation: {len(results)}")
-      for _, evaluate_res in results:
+
+      for id, evaluate_res in results:
         num_examples = evaluate_res.num_examples
         metrics = evaluate_res.metrics
 
-        loss = metrics.get("loss", 0.0)
+        if id.cid == CLIENT_TO_UNLEARN:
+                with open("logs/first_client_eval.txt", "a") as f:
+                    f.write(f"Round {server_round} - Loss: {evaluate_res.loss:.4f}, "
+                            f"Accuracy: {metrics.get('accuracy',0):.4f}\n")
+        loss = evaluate_res.loss
         accuracy = metrics.get("accuracy", 0.0)
 
         weighted_loss_sum += loss * num_examples
@@ -278,6 +361,6 @@ if __name__ == "__main__":
     print("Démarrage du serveur Flower avec stratégie personnalisée...")
     fl.server.start_server(
         server_address="0.0.0.0:8080",
-        config=fl.server.ServerConfig(num_rounds=4),
+        config=fl.server.ServerConfig(num_rounds=10),
         strategy=strategy,
     )
