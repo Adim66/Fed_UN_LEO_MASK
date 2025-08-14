@@ -56,7 +56,7 @@ def split_model_into_substructures(ndarrays: List[np.ndarray], num_parts: int):
 
 NUM_SUBSTRUCTURES = 10 
 UNLEARN_ROUND=5
-unlearn_threshold = 0.7  # Seuil pour considérer une influence comme faible
+unlearn_threshold = 0.9  # Seuil pour considérer une influence comme faible
 CLIENT_TO_UNLEARN= ""  # Client à désapprendre""
 SUB_WEEK=[] # Nombre de sous-structures à créer
 class SimpleModel(nn.Sequential):
@@ -151,7 +151,7 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
              for client, share in client_shares:
     
                      
-                 if client.cid == CLIENT_TO_UNLEARN and UNLEARN_ROUND <server_round <=9:
+                 if client.cid == CLIENT_TO_UNLEARN and UNLEARN_ROUND <server_round <=15:
                      
                      continue 
                  
@@ -172,7 +172,7 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
     "sub_indices": ",".join(str(n) for n in SUB_WEEK)
 
 }                     
-                      print("sub indices weakly influenced", SUB_WEEK)
+                 print("sub indices weakly influenced", SUB_WEEK)
 
                  if client.cid == CLIENT_TO_UNLEARN :
                                  print("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR :")
@@ -216,7 +216,7 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
                 client_obj, budget = entry[0], entry[1]
                 sub_indices = entry[2] if len(entry) > 2 else "N/A"
                 f.write(f"  Client {client_obj.cid}, Budget: {budget:.2f}, Sub-Indices: {sub_indices}\n")
-
+        print(f"[DEBUG] Nombre total d'instructions de fit créées : {len(fit_instructions)} pendant le round {server_round}")
         return fit_instructions
    # The following block is commented out because it is unused and causes indentation errors.
    # def configure_fit(
@@ -253,7 +253,7 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
 ]
 
 
-    def aggregate_fit(self, server_round, results, failures):
+    '''def aggregate_fit(self, server_round, results, failures):
         print("d5alnaaaaaaaaaaaaaaaaaaaa ll agggggggg")
         if not results:
             return None, {}
@@ -265,7 +265,7 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
         for _, fit_res in results:
             sub_indices = fit_res.metrics.get("sub_indices")
             cluster_id = fit_res.metrics.get("cluster_id")
-            weights = fl.common.parameters_to_ndarrays(fit_res.parameters)
+            weights =fit_res.parameters
             
             if cluster_id not in clusters_results:
              clusters_results[cluster_id] = []
@@ -289,7 +289,8 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
         averaged_weights = [w / total_examples for w in weighted_sum]
         aggregated_clusters[cluster_id] = averaged_weights
         cluster_sizes[cluster_id] = total_examples
-
+        #el fatla lenna ; dict (id , list[poids])
+        #men hna el modification  
     # Agrégation globale : moyenne pondérée des clusters selon leur taille
         total_examples_global = sum(cluster_sizes.values())
         global_weight_sum = [np.zeros_like(w) for w in aggregated_clusters[next(iter(aggregated_clusters))]]
@@ -300,8 +301,12 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
              global_weight_sum[i] += w * cluster_weight
 
         aggregated_parameters = fl.common.ndarrays_to_parameters(global_weight_sum)
-        return aggregated_parameters, {}
-    
+        #el probleme lehna : donc n7ot les result [i][1].parameters fy cluster z  
+        return aggregated_parameters, {}'''
+    def aggregate_fit(self, server_round, results, failures):
+    # Appeler directement l’agrégation FedAvg standard
+       aggregated_parameters, metrics = fl.server.strategy.FedAvg.aggregate_fit(self=self,server_round=server_round, results=results, failures=failures)
+       return aggregated_parameters, metrics
     def aggregate_evaluate(self, server_round, results, failures):
       if not results:
           return None, {}
@@ -320,12 +325,14 @@ class CustomStepStrategy(fl.server.strategy.FedAvg):
                     f.write(f"Round {server_round} - Loss: {evaluate_res.loss:.4f}, "
                             f"Accuracy: {metrics.get('accuracy',0):.4f}\n")
         loss = evaluate_res.loss
+        print("el loss heyya ", loss)
         accuracy = metrics.get("accuracy", 0.0)
 
         weighted_loss_sum += loss * num_examples
         weighted_accuracy_sum += accuracy * num_examples
         total_examples += num_examples
-
+      print("total examples", total_examples)
+      print("weighted loss sum", weighted_loss_sum)
       avg_loss = weighted_loss_sum / total_examples
       avg_accuracy = weighted_accuracy_sum / total_examples
 
@@ -353,7 +360,7 @@ if __name__ == "__main__":
         fraction_evaluate=1.0,
         min_fit_clients=1,
         min_evaluate_clients=1,
-        min_available_clients=2,
+        min_available_clients=1,
         initial_parameters=initial_parameters,
     )
         
@@ -361,6 +368,6 @@ if __name__ == "__main__":
     print("Démarrage du serveur Flower avec stratégie personnalisée...")
     fl.server.start_server(
         server_address="0.0.0.0:8080",
-        config=fl.server.ServerConfig(num_rounds=10),
+        config=fl.server.ServerConfig(num_rounds=15),
         strategy=strategy,
     )

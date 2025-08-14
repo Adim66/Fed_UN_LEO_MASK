@@ -24,24 +24,36 @@ def load_full_mnist():
     ])
 
     train_dataset = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
-    print(f"Train dataset size: {len(train_dataset)}"
-          f", Test dataset size: {len(test_dataset)}")
-    return train_dataset, test_dataset
+   # test_dataset = datasets.MNIST(root="./data", train=False, download=True, transform=transform) ma 7ajtich bih
+    print(f"Train dataset size: {len(train_dataset)}")
+    return train_dataset
 
-def load_data(train_dataset, client_id, num_clients, batch_size=1):
-    # Calculer indices pour découper le dataset en partitions égales
-    data_len = len(train_dataset)
-    indices_per_client = data_len // num_clients
-    start_idx = client_id * indices_per_client
-    end_idx = start_idx + indices_per_client if client_id != num_clients - 1 else data_len
+from torch.utils.data import Subset, DataLoader, random_split
 
-    client_indices = list(range(start_idx, end_idx))
+def load_data(global_dataset, client_label, batch_size=128, test_ratio=0.2):
+    """
+    Charge les donddnées MNIST pour un client spécifique qui ne prend qu'un label particulier.
+    """
+    # Filtrer les indices correspondant au label du client
+    client_indices = [i for i, (_, label) in enumerate(global_dataset) if label == client_label]
+    print(f"client de id : {client_label} a {len(client_indices)} exemples pour ")
+    # Split train/test local
+    total_size = len(client_indices)
+    test_size = int(test_ratio * total_size)
+    train_size = total_size - test_size
 
-    client_subset = Subset(train_dataset, client_indices)
-    client_loader = DataLoader(client_subset, batch_size=batch_size, shuffle=True)
-    print(f"Client id {client_id} a {len(client_subset)} exemples.")
-    return client_loader
+    client_train_indices, client_test_indices = random_split(client_indices, [train_size, test_size])
+
+    # Création des Subsets et DataLoaders
+    client_train = Subset(global_dataset, client_train_indices)
+    client_test = Subset(global_dataset, client_test_indices)
+
+    train_loader = DataLoader(client_train, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(client_test, batch_size=batch_size, shuffle=False)
+
+    return train_loader, test_loader
+
+
 
 
 # ========== Utilitaires pour manipuler les poids ==========
@@ -54,27 +66,31 @@ def get_weights(model: nn.Module) -> List[np.ndarray]:
     return [param.detach().numpy() for param in model.parameters()]
 
 # ========== Entraînement local ==========
-def train(model, dataloader, epochs=1):
+def train(model, dataloader, epochs=1, lr=0.005):
     model.train()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.08)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     loss_fn = nn.CrossEntropyLoss()
-    i=0
-    for _ in range(epochs):
-        j=0
+
+    for epoch in range(epochs):
+        running_loss = 0.0
+        num_batches = 0
         for x, y in dataloader:
             x = x.view(x.size(0), -1)
             optimizer.zero_grad()
             output = model(x)
-            j+=1
-            
+
             loss = loss_fn(output, y)
             loss.backward()
-
             optimizer.step()
-        print(f"-----------------Training batch-------------------- {j}")
-        
+            running_loss += loss.item()
+            num_batches += 1
+
+        avg_loss = running_loss / num_batches
+        print(f"[Epoch {epoch+1}/{epochs}] Loss: {avg_loss:.4f}")
+          # Optionnel : évaluer après chaque epoch
+
 def evaluation(model, dataloader):
-    model.eval()  # mode évaluation (désactive dropout, batchnorm etc.)
+    model.eval()
     loss_fn = nn.CrossEntropyLoss()
     total_loss = 0.0
     correct = 0
@@ -82,10 +98,11 @@ def evaluation(model, dataloader):
 
     with torch.no_grad():
         for x, y in dataloader:
-            x = x.view(x.size(0), -1)  # n3awed el shape mte3 el input
+            x = x.view(x.size(0), -1)
             outputs = model(x)
             loss = loss_fn(outputs, y)
             total_loss += loss.item() * x.size(0)
+
             _, predicted = torch.max(outputs, dim=1)
             correct += (predicted == y).sum().item()
             total += y.size(0)
@@ -94,14 +111,15 @@ def evaluation(model, dataloader):
     accuracy = correct / total
     return avg_loss, accuracy
 
+
 # ========== Client Flower ==========
 class BudgetClient(fl.client.NumPyClient):
     def __init__(self, client_id: int, num_clients: int) :
         self.client_id = client_id
         self.num_clients = num_clients
         print(f"Client ID: {self.client_id}, Total Clients: {self.num_clients}")
-        self.train_dataset, self.test_dataset = load_full_mnist()
-        self.local_data = load_data(self.train_dataset, self.client_id, self.num_clients)
+        self.train_dataset = load_full_mnist()
+        self.local_data,self.test_dataset = load_data(self.train_dataset, self.client_id, self.num_clients)
 
 
 
@@ -143,8 +161,9 @@ class BudgetClient(fl.client.NumPyClient):
     # 4. Geler (freeze) un certain pourcentage de couches cachées selon la sous-structure reçue
      self.freeze_layers_by_percentage(model, sub_indices)
      print(f"données de ce client est : {len(self.local_data.dataset)} exemples")
-     train(model, self.local_data, epochs=config.get("epochs", 1))
-
+     train(model, self.local_data, epochs=config.get("epochs", 5))
+     eval_loss, eval_accuracy = evaluation(model, self.test_dataset)
+     print(f"[Client {self.client_id}] Évaluation - Loss: {eval_loss:.4f}, Accuracy: {eval_accuracy:.4f}")
   
 
     # 7. Extraire les poids entraînés du modèle après entraînement
@@ -163,7 +182,7 @@ class BudgetClient(fl.client.NumPyClient):
         "id": self.client_id
     }
     def evaluate(self, parameters, config):
-    # 1. Construire le modèle complet
+      print("d5alnaaa ll evalluation ---------------------------------")
       model = self.build_full_model()
     
     # 2. Charger les poids globaux dans le modèle
@@ -171,10 +190,13 @@ class BudgetClient(fl.client.NumPyClient):
     
     # 3. Mettre le modèle en mode évaluation
       model.eval()
-    
+      mini_batch_size = 16  # ou autre taille que tu souhaites
+      indices = list(range(min(mini_batch_size, len(self.local_data.dataset))))  # prendre les premiers mini_batch_size indices
+      mini_subset = Subset(self.local_data.dataset, indices) 
+      mini_dataloader = DataLoader(mini_subset, batch_size=mini_batch_size, shuffle=False)
     # 4. Utiliser ta fonction d’évaluation locale
-      loss, accuracy = evaluation(model, self.local_data)
-    
+      loss, accuracy = evaluation(model, self.test_dataset)
+      print(f"[Client {self.client_id}] Évaluation - Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
     # 5. Retourner la loss, le nombre d’exemples, et les métriques (par ex. accuracy)
       return loss, len(self.local_data.dataset), {"accuracy": accuracy}
 

@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-num_clients = 4
+num_clients = 10
 
 processes = []
 for i in range(num_clients):
